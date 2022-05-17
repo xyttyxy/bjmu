@@ -1,0 +1,6 @@
+*.exe
+*.html
+*.pdf
+*.aux
+tools/
+refs/

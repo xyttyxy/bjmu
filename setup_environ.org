@@ -1,0 +1,51 @@
+#+LaTeX_HEADER: \usepackage[x11names]{xcolor}
+#+LaTeX_HEADER: \hypersetup{linktoc = all, colorlinks = true, urlcolor = blue, citecolor = green, linkcolor = black}
+#+AUTHOR: Yantao Xia
+#+DATE: <2022-05-15 Sun>
+This file is intended to help with setting up the development environment for BJMU's cell image analysis project. Things change rapidly but we attempt to keep instructions here up to date. 
+
+* Toolchain overview
+  the toolchain consists of MATLAB, ImageJ, cellpose, trackmate. These tools are written in different languages but we can make them cooperate with each other easily. 
+  * MATLAB: you know what it is already. what you may not know is that MATLAB comes with JVM, and the entire Java API is exposed to the MATLAB command line. More information [[https://www.mathworks.com/help/matlab/using-java-libraries-in-matlab.html][here]] and [[https://undocumentedmatlab.com/books/matlab-java][here]].
+  * ImageJ: A image processing package based on SciJava, in turn based on Java. This is basically the Java `equivalent' of numpy. The user community
+  * cellpose: A segmentation method, using pytorch as the machine learning framework. Pytorch is python wrapper around torch, a library in CUDA and C++. 
+  * TrackMate: An ImageJ plug in written using SciJava's capabilities. 
+*Note*: to exploit GPU hardware acceleration, you need a GPU from NVIDIA. If you do not have that, CUDA will not work as it is proprietary library. Given NVIDIA's dominance over the GPU market, it is likely you have one as long as you have a dedicated graphics card. 
+
+The software stack we are going to adopt is as follows:
+1. We will use MATLAB as a rapid protyping language. It will be used to control ImageJ. The details are given here: [[https://imagej.net/scripting/matlab][MATLAB Scripting in ImageJ2]]. Example specific to TrackMate is available here: [[https://imagej.net/plugins/trackmate/using-from-matlab][Using TrackMate from MATLAB]]
+2. ImageJ will be used to launch cellpose and TrackMate, since there already exists an interface between the two. See documentation here: [[https://imagej.net/plugins/trackmate/trackmate-cellpose][TrackMate-Cellpose]]
+3. The final product can be a MATLAB program, instead of python. Reason: 1) this is the method we are most familiar with, and 2) it will not introduce much overhead since installing the ImageJ and cellpose will take up space on the order of gigabytes already, excluding the MATLAB runtime. 
+
+The overall flow of information: 
+1. Run cellpose to segment image. 
+2. Save segmented mask to disk. 
+3. Use TrackMate to match the cells from across images.
+4. Save the tracks to disk.
+5. Read tracks and masks in MATLAB, and analyze the intensities
+*Note*: During protyping phase, these components can be decoupled.
+
+* Installation
+  * MATLAB: you already have it.
+  * ImageJ: Simply [[https://imagej.net/software/fiji/][download Fiji]].
+  * cellpose: install via conda. 
+    1. install conda. /A [[https://docs.conda.io/en/latest/miniconda.html][miniconda]] installation is preferred, do *NOT* install anything in the base environment/
+    2. change the mirror to [[https://mirrors.tuna.tsinghua.edu.cn/help/anaconda/][tuna]]. Do it for both conda and conda-forge channels.
+    3. =conda create -n cellpose=
+    4. =conda install pytorch cudatoolkit=11.3 -c pytorch=. *Note*: depending on your GPU, you might need to change the pytorch and CUDA version, see instructions [[https://github.com/MouseLand/cellpose/issues/481#issuecomment-1080137885][here]].
+    5. =conda install -c conda-forge cellpose=
+    6. launch cellpose. Most likely it will complain about missing packages. Install any missing dependencies as listed in [[https://cellpose.readthedocs.io/en/latest/installation.html][their docs]].
+    7. Verify it is using GPU. It should say so in console output. 
+  * TrackMate: the plugin comes pre-installed with the Fuji distribution of ImageJ.
+  * trackmate-cellpose: this interface is not preinstalled. [[https://imagej.net/plugins/trackmate/trackmate-cellpose][Instructions here]].
+*Note*: the trackmate-cellpose plugin is not aware of DLLs (/e.g./ numpy) unless they are explicitly included in the path. You can add the conda paths to the Windows =%PATH%= but this will pollute environment and cause problems later on. A better way is to set the path on the fly using a batch script: 
+#+BEGIN_SRC 
+SET PATH=^
+D:\Miniconda\envs\ast240\Library\mingw-w64\bin;^
+D:\Miniconda\envs\ast240\Library\bin;^
+D:\Miniconda\envs\ast240\Scripts;^
+D:\Miniconda\envs\ast240;%PATH% ^
+&& START /D ^"D:\Program Files\fiji-win64\Fiji.app^" ImageJ-win64.exe
+#+END_SRC
+save this somewhere as =.bat= file, edit the paths accordingly.
+
