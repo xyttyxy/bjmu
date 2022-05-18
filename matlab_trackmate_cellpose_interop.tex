@@ -1,0 +1,62 @@
+% Created 2022-05-18 Wed 01:31
+% Intended LaTeX compiler: pdflatex
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{graphicx}
+\usepackage{grffile}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{textcomp}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\usepackage[x11names]{xcolor}
+\hypersetup{linktoc = all, colorlinks = true, urlcolor = blue, citecolor = green, linkcolor = black}
+\author{Yantao Xia}
+\date{\textit{<2022-05-17 Tue>}}
+\title{}
+\hypersetup{
+ pdfauthor={Yantao Xia},
+ pdftitle={},
+ pdfkeywords={},
+ pdfsubject={},
+ pdfcreator={Emacs 26.3 (Org mode 9.1.9)}, 
+ pdflang={English}}
+\begin{document}
+
+\tableofcontents
+
+This file records development process trying to script ImageJ plugins in MATLAB. Since I am not familiar with MATLAB's Java API and Java in general, this record is expected to be useful later on. 
+
+\section{Execution sequence in original trackmate program}
+\label{sec:org950d70c}
+the following methods are called in sequence, with status check methods in between.
+\begin{itemize}
+\item trackmate
+\item execDetection
+\item execInitialSpotFiltering
+\item computeSpotFeatures
+\item execSpotFiltering
+\item execTracking
+\item computeEdgeFeatures
+\item computeTrackFeatures
+\item computeTrackFiltering
+\end{itemize}
+
+\textbf{Note}: execDetection executes detection algorithm. There are two ways this can be done, by calling either \texttt{TrackMate.ProcessGlobal} or
+\texttt{TrackMate.ProcessFrameByFrame}, using \texttt{SpotGlobalDetector} and \texttt{SpotDetector} interfaces, respectively. 
+The problem is that the TrackMate-Cellpose plugin implemented the communication as \texttt{SpotGlobalDetector}, so even with scripting we still cannot work on a frame-by-frame basis. This implementation is reasonable to exploit multithreading, but useless when GPU is used.
+
+\section{The current script}
+\label{sec:orge6052b0}
+The rough structure follows the example script (see setup\(_{\text{environ}}\)).
+\begin{enumerate}
+\item After importing the Java jars, the image sequence is read. By defualt, the \texttt{ij.plugin.FolderReader} opens the image sequence as a stack in Z direction(3D images) instead of a time sequence. This is then corrected.
+\item Settings for the cellpose detector obviously differed from the LoG/DoG detector in the example. The relevant fields and their types can be found by decompiling the TrackMate-Cellpose jar. Note that to specify the model, it is necessary to construct a Java enum instance. This poor implementation choice took me a long time to figure out.
+\item Only one image is copied to the temperorary directory unless the settings.tend parameter is set, this leads to cellpose believing there being only one image. Inspecting the TrackMate source reveals the reason to be tracking interval being dependent on tstart and tend. However, even when tend is set to 49 (50 images in total, 0 indexing), all files are copied over, but cellpose only processed 36 of them. This could be a memory issue or power management issue with the laptop.
+\end{enumerate}
+\end{document}

@@ -1,0 +1,30 @@
+#+LaTeX_HEADER: \usepackage[x11names]{xcolor}
+#+LaTeX_HEADER: \hypersetup{linktoc = all, colorlinks = true, urlcolor = blue, citecolor = green, linkcolor = black}
+#+AUTHOR: Yantao Xia
+#+DATE: <2022-05-17 Tue>
+#+OPTIONS: toc:nil        (no default TOC at all)
+This file records development process trying to script ImageJ plugins in MATLAB. Since I am not familiar with MATLAB's Java API and Java in general, this record is expected to be useful later on. 
+
+* Execution sequence in original trackmate program
+  the following methods are called in sequence, with status check methods in between.
+  - trackmate
+  - execDetection
+  - execInitialSpotFiltering
+  - computeSpotFeatures
+  - execSpotFiltering
+  - execTracking
+  - computeEdgeFeatures
+  - computeTrackFeatures
+  - computeTrackFiltering
+
+  *Note*: execDetection executes detection algorithm. There are two ways this can be done, by calling either =TrackMate.ProcessGlobal= or  =TrackMate.ProcessFrameByFrame=, using =SpotGlobalDetector= and =SpotDetector= interfaces, respectively. 
+  The problem is that the TrackMate-Cellpose plugin implemented the communication as =SpotGlobalDetector=, so even with scripting we still cannot work on a frame-by-frame basis. This implementation is reasonable to exploit multithreading, but useless when GPU is used.
+
+* The current script
+  The rough structure follows the example script (see =setup_environ=).
+  1. After importing the Java jars, the image sequence is read. By defualt, the =ij.plugin.FolderReader= opens the image sequence as a stack in Z direction(3D images) instead of a time sequence. This is then corrected.
+  2. Settings for the cellpose detector obviously differed from the LoG/DoG detector in the example. The relevant fields and their types can be found by decompiling the TrackMate-Cellpose jar. Note that to specify the model, it is necessary to construct a Java enum instance. This poor implementation choice took me a long time to figure out. 
+  3. Only one image is copied to the temperorary directory unless the settings.tend parameter is set, this leads to cellpose believing there being only one image. Inspecting the TrackMate source reveals the reason to be tracking interval being dependent on tstart and tend. However, even when tend is set to 49 (50 images in total, 0 indexing), all files are copied over, but cellpose only processed 36 of them. This could be a memory issue or power management issue with the laptop.
+  4. After processing, the trackmate program state is saved to an xml file. There are two ways of saving the xml, and as indicated in comments, the simple xml will not work. Incidentally their xml writer wrapper function seem to be broken. 
+
+
