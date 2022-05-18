@@ -1,4 +1,6 @@
 #+LaTeX_HEADER: \usepackage[x11names]{xcolor}
+#+LATEX_COMPILER: xelatex
+#+LATEX_CLASS: elegantpaper
 #+LaTeX_HEADER: \hypersetup{linktoc = all, colorlinks = true, urlcolor = blue, citecolor = green, linkcolor = black}
 #+AUTHOR: Yantao Xia
 #+DATE: <2022-05-17 Tue>
