@@ -2,5 +2,6 @@
 *.html
 *.pdf
 *.aux
+*.xml
 tools/
 refs/
