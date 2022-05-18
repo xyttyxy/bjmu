@@ -3,6 +3,7 @@
 *.pdf
 *.aux
 *.xml
+*.asv
 tools/
 refs/
 auto/
