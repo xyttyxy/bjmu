@@ -11,7 +11,7 @@ for idx_m = 1:num_labels
     end
     bw_cytoplasm = imbinarize_mask(I,bw_cell);
     %imshowpair(I,imfuse(bw_cell,bw_cytoplasm),'montage');
-    I_cr_plasma = bsxfun(@times, I, cast(bw_cytoplasm,class(I)));
+    I_cr_plasma = bsxfun(@times, I, cast(bw_cytoplasm, class(I)));
     intensity = I_cr_plasma(:);
     intensity = intensity(intensity > 0);
     mean_intensity = mean(intensity);

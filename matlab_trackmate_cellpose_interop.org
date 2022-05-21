@@ -1,6 +1,5 @@
 #+LaTeX_HEADER: \usepackage[x11names]{xcolor}
 #+LATEX_COMPILER: xelatex
-#+LATEX_CLASS: elegantpaper
 #+LaTeX_HEADER: \hypersetup{linktoc = all, colorlinks = true, urlcolor = blue, citecolor = green, linkcolor = black}
 #+AUTHOR: Yantao Xia
 #+DATE: <2022-05-17 Tue>
@@ -20,13 +19,42 @@ This file records development process trying to script ImageJ plugins in MATLAB.
   - computeTrackFiltering
 
   *Note*: execDetection executes detection algorithm. There are two ways this can be done, by calling either =TrackMate.ProcessGlobal= or  =TrackMate.ProcessFrameByFrame=, using =SpotGlobalDetector= and =SpotDetector= interfaces, respectively. 
-  The problem is that the TrackMate-Cellpose plugin implemented the communication as =SpotGlobalDetector=, so even with scripting we still cannot work on a frame-by-frame basis. This implementation is reasonable to exploit multithreading, but useless when GPU is used.
+  *The problem* is that the TrackMate-Cellpose plugin implemented the communication as =SpotGlobalDetector=, so even with scripting we still cannot work on a frame-by-frame basis. This implementation is reasonable to exploit multithreading, but useless when GPU is used.
+  The current implementation also does not allow executing cellpose /offline/ and importing the detected masks manually.
 
-* The current script
+* =run_imagej_trackmate_cellpose.m=
   The rough structure follows the example script (see =setup_environ=).
   1. After importing the Java jars, the image sequence is read. By defualt, the =ij.plugin.FolderReader= opens the image sequence as a stack in Z direction(3D images) instead of a time sequence. This is then corrected.
   2. Settings for the cellpose detector obviously differed from the LoG/DoG detector in the example. The relevant fields and their types can be found by decompiling the TrackMate-Cellpose jar. Note that to specify the model, it is necessary to construct a Java enum instance. This poor implementation choice took me a long time to figure out. 
   3. Only one image is copied to the temperorary directory unless the settings.tend parameter is set, this leads to cellpose believing there being only one image. Inspecting the TrackMate source reveals the reason to be tracking interval being dependent on tstart and tend. However, even when tend is set to 49 (50 images in total, 0 indexing), all files are copied over, but cellpose only processed 36 of them. This could be a memory issue or power management issue with the laptop.
   4. After processing, the trackmate program state is saved to an xml file. There are two ways of saving the xml, and as indicated in comments, the simple xml will not work. Incidentally their xml writer wrapper function seem to be broken. 
+* =track2brightness.m=
+  This script reads the trackmate xml and analyzes the brightness
+  1. xml parser provided by trackmate attempts to read keys not present in the xml. The extra keys are =ROI_N_POINTS=, =ID=, and =name=. The xml file has one extra key =MANUAL_SPOT_COLOR= that the parser does not read. 
+  2. The reason is that these features are defined in AllSpots/SpotsInFrame/Spot but not declared in FeatureDeclarations/SpotFeatures. The same thing happen with xml written by GUI, so this is a bug. A small edit fixed this.
+  3. The most useful parser is =trackmateGraph= which reads the xml to a MATLAB digraph, enabling efficient manipulation of tracks.
 
+* Preliminary results
+  The tracks are read, and can be plotted: 
+  [[./uncleaned_graph.eps]]
+  cleaning removes:
+  1. nodes not connected to any other node
+  2. nodes not discovered in the first frame
+  3. nodes linked to fewer than 8 (number of baseline frames) nodes, including itself.
+  [[./cleaned_graph.eps]]
+  The fact that the graph edges do not cross link extensively (if at all) suggests the cells do not split/merge much, which is true, suggesting we have good tracking. Let's see the tracks overlayed on the image: 
+  [[./overlay.eps]]
+  The tracking now indeed works pretty well. However, the intensities are still not very clean:
+  [[./montage-0.png]]
+  [[./montage-1.png]]
+  [[./montage-2.png]]
+  [[./montage-3.png]]
+  [[./montage-4.png]]
+  This may be a problem with the mask being inconsistent over the frames. Indeed, the mask seem to persist after the cell has died, catching the ghost images of dead cells: 
 
+  [[./37.png]]
+  [[./mask_37.png]]
+
+  There is clearly a lot more regions on the mask than there are cells on the original image. This problem can only be fixed with a retrained cellpose model. 
+
+  *Note:* the script now does NOT remove nuclei. 

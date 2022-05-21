@@ -4,6 +4,7 @@
 *.aux
 *.xml
 *.asv
+*.png
 tools/
 refs/
 auto/

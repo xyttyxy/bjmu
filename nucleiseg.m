@@ -1,10 +1,13 @@
 clear all;close all;
-
-for idx_img = 1:50
-    mask_l = readNPY('D:\a_shj\img_db\wanghuan\merged\tp_'+string(idx_img)+'.npy');
+%%
+bg = [];
+for idx_img = 0:36
+    % mask_l = readNPY('D:\a_shj\img_db\wanghuan\merged\tp_'+string(idx_img)+'.npy');
     I = imread('D:\a_shj\img_db\wanghuan\merged\tp_'+string(idx_img)+'.tif');
-    bg = mean(I(mask_l == 0));
-
+    mask_l = imread(strcat('C:\Users\DZ-03-172\AppData\Local\Temp\TrackMate-Cellpose_8568926424230976045\', sprintf('%d_cp_masks.png', idx_img)));
+    % I = imread(strcat('C:\Users\DZ-03-172\AppData\Local\Temp\TrackMate-Cellpose_8568926424230976045\', sprintf('%d.tif', idx_img)));
+    bg = [bg, mean(I(mask_l == 0))]
+    continue;
     rp = regionprops(mask_l, 'Centroid', 'BoundingBox', 'Area', 'EquivDiameter');
     if idx_img > 1
         M = track_cell(rp_f, rp);
@@ -33,6 +36,7 @@ for idx_img = 1:50
     rp_f = rp;
 end
 
+return
 %test
 name1 = strcat('trace/matches.mat');
 save(name1,'matches');

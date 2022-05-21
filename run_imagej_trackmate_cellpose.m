@@ -150,3 +150,4 @@ str = xmlwriter.toString();
 fid = fopen('test.xml', 'w');
 fprintf(fid, '%s\n', str);
 fclose(fid);
+    
