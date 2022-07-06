@@ -1,14 +1,20 @@
-function main(app, jobname, xml_filename, w1_folder, w2_folder, masks_folder, output_folder)
-app.TextArea.Value = '';
-cla(app.UIAxes);
+function main(jobname, xml_filename, w1_folder, w2_folder, masks_folder, output_folder, varargin)
+if nargin == 7nar
+    app = varargin{1};
+    app.TextArea.Value = '';
+    cla(app.UIAxes);
+else
+    clc; close all;
+    app = 'NA';
+end
 num_w1 = size(dir([w1_folder, '\*.tif']), 1);
 num_w2 = size(dir([w2_folder, '\*.tif']), 1);
 num_masks = size(dir([masks_folder, '\*.png']), 1);
 if num_w1 == num_w2 && num_w1 == num_masks
     nframes = num_w1;
-    app.TextArea.Value{end+1} = sprintf('%d frames found.', nframes);
+    logout(app, sprintf('%d frames found.', nframes));
 else
-    app.TextArea.Value{end+1} = 'ERR: Number of images mismatch';
+    logout(app, 'ERR: Number of images mismatch');
     return;
 end
 frames = 0:nframes-1;
@@ -16,7 +22,7 @@ frames = 0:nframes-1;
 w1 = [];
 w2 = [];
 w1_masks = [];
-app.TextArea.Value{end+1} = 'Reading Images...';
+logout(app, 'Reading Images...');
 try
     for f = 1:numel(frames)
     frame = frames(f);
@@ -28,12 +34,12 @@ catch ME
     msgbox(ME.message, ['Error: ', ME.identifier], 'Error');
     return;
 end
-app.TextArea.Value{end+1} = 'Done';
+logout(app, 'Done');
 
 %% calculate intensities of regions, excluding nuclei
 intensities_w1s = {};
 intensities_w2s = {};
-app.TextArea.Value{end+1} = 'Calculating per-cell intensities (ex. nuclei) ...';
+logout(app, 'Calculating per-cell intensities (ex. nuclei) ...');
 wbar = waitbar(0, 'Calculating per-cell intensties (ex. nuclei) ...');
 for idx_f = 1:nframes
     w1_f = w1(:, :, idx_f);
@@ -44,12 +50,12 @@ for idx_f = 1:nframes
     waitbar(idx_f/nframes, wbar);
 end
 delete(wbar);
-app.TextArea.Value{end+1} = 'Done';
+logout(app, 'Done');
 
 %% calculate background intensities
 bg_2 = [];
 bg_1 = [];
-app.TextArea.Value{end+1} = 'Calculating background intensities...';
+logout(app, 'Calculating background intensities...');
 for idx_f = 1:nframes
     w1_f = w1(:, :, idx_f);
     w2_f = w2(:, :, idx_f);
@@ -57,10 +63,10 @@ for idx_f = 1:nframes
     bg_1 = [bg_1, mean(w1_f(w1_mask_f == 0 & w1_f < 5e3))];
     bg_2 = [bg_2, mean(w2_f(w1_mask_f == 0 & w1_f < 5e3))];
 end
-app.TextArea.Value{end+1} = 'Done';
+logout(app, 'Done');
 
 %% read trackmate output
-app.TextArea.Value{end+1} = 'Reading Cellpose XML...';
+logout(app, 'Reading Cellpose XML...');
 try
     G_asimport = trackmateGraph(xml_filename);
 catch ME
@@ -68,10 +74,10 @@ catch ME
     return;    
 end
 G_backwards = flipedge(G_asimport);
-app.TextArea.Value{end+1} = 'Done';
+logout(app, 'Done');
 
 %% clean graph
-app.TextArea.Value{end+1} = 'Cleaning Cellpose Graph';
+logout(app, 'Cleaning Cellpose Graph');
 to_remove = [];
 for idx_n = 1:numnodes(G_asimport)
     edges_down = G_asimport.dfsearch(idx_n);
@@ -86,13 +92,18 @@ for idx_n = 1:numnodes(G_asimport)
     end
 end
 G_cleaned = rmnode(G_asimport, to_remove);
-app.TextArea.Value{end+1} = 'Done';
+logout(app, 'Done');
 
 %% plot intensity history for each region
-app.TextArea.Value{end+1} = 'Aligning tracks and calculating ratios...';
+logout(app, 'Aligning tracks and calculating ratios...');
 N_frame1 = G_cleaned.Nodes(G_cleaned.Nodes{:, 'FRAME'} == 0,:);
 
-close all; hold(app.UIAxes, 'on');
+close all; 
+if class(app) == 'app1'
+    hold(app.UIAxes, 'on');
+else
+    figure; hold on;
+end
 wbar = waitbar(0, 'Aligning tracks and calculating Ratios');
 w1_ints = {};
 w2_ints = {};
@@ -132,12 +143,16 @@ for idx_n = 1:height(N_frame1)
     w1_ints{end+1} = w1_int;
     w2_ints{end+1} = w2_int;
     
-    if app.PlotCheckBox.Value ~= 0
-        plot(app.UIAxes, 1:numel(w1_int), -w1_int./w2_int+1);
+    if class(app) == 'app1'
+        if app.PlotCheckBox.Value ~= 0
+            plot(app.UIAxes, 1:numel(w1_int), -w1_int./w2_int+1);
+        end
+    else
+        plot(1:numel(w1_int), -w1_int./w2_int+1);
     end
 end
 delete(wbar);
-app.TextArea.Value{end+1} = 'Done';
+logout(app, 'Done');
 
 %% outputting the cell array
 w1_out = outputcellarray(w1_ints);
@@ -153,7 +168,7 @@ for idx1 = 0:size(w1_out, 1)-1
 end
 fileID = fopen([output_folder, '\', jobname, '.csv'],'w');
 msgbox(['Output written to ', output_folder, '\', jobname, '.csv'], 'All done!');
-app.TextArea.Value{end+1} = ['Output written to ', output_folder, '\', jobname, '.csv'];
+logout(app, ['Output written to ', output_folder, '\', jobname, '.csv']);
 
 for row = 1:size(all_out, 1)
     fprintf(fileID, '%11.4e, ', all_out(row,:));
@@ -161,7 +176,7 @@ for row = 1:size(all_out, 1)
 end
 fclose(fileID);
 
-app.TextArea.Value{end+1} = 'All Done!';
+logout(app, 'All Done!');
 
 end
 
@@ -173,4 +188,12 @@ for idx2=1:size(w1_ints, 2)
     tmp = w1_ints{1, idx2};
     outarray(idx2,1:rowlength(idx2)) = tmp';
 end
+end
+
+function logout(app, message)
+    if class(app) == 'app1'
+        app.TextArea.Value{end+1} = message;
+    else
+        fprintf('%s\n', message);
+    end
 end
