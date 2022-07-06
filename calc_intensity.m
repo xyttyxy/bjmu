@@ -1,14 +1,11 @@
 function intensities_out = calc_intensity(I, mask_l, varargin)
- 
+% excluding nuclei
 bw_ret = false(size(I));
 num_labels = max(mask_l, [], 'all');
 intensities = zeros(num_labels, 1);
 
 for idx_m = 1:num_labels
     bw_cell = bwareaopen(mask_l == idx_m, 10);
-    if bwarea(bw_cell) == 0
-        continue;
-    end
     bw_cytoplasm = imbinarize_mask(I,bw_cell);
     %imshowpair(I,imfuse(bw_cell,bw_cytoplasm),'montage');
     I_cr_plasma = bsxfun(@times, I, cast(bw_cytoplasm, class(I)));
@@ -52,6 +49,4 @@ intensities_out = intensities;
 % %test
 
 clearvars -except intensities_out;
-close all;
-
 end
